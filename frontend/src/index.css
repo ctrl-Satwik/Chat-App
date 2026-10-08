@@ -1,0 +1,191 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: #0f1010;
+    color: #fafafa;
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    font-feature-settings: 'cv11', 'ss01';
+    -webkit-tap-highlight-color: transparent;
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background: rgba(176, 79, 212, 0.45);
+    color: #ffffff;
+  }
+
+  :focus-visible {
+    outline: 2px solid rgba(176, 79, 212, 0.8);
+    outline-offset: 2px;
+  }
+
+  /* Thin, low-contrast scrollbars that blend into the dark surfaces */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.18);
+    background-clip: padding-box;
+  }
+}
+
+@layer components {
+  /* Full-viewport height with a fallback for browsers without dynamic viewport units */
+  .app-screen {
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  .modal-max-h {
+    max-height: 90vh;
+    max-height: 90dvh;
+  }
+
+  .app-min-screen {
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  /* Shimmering skeleton block */
+  .skeleton {
+    @apply rounded-md animate-shimmer;
+    background-image: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.04) 0%,
+      rgba(255, 255, 255, 0.08) 50%,
+      rgba(255, 255, 255, 0.04) 100%
+    );
+    background-size: 200% 100%;
+  }
+
+  /* Accent gradient used for outgoing bubbles and primary actions */
+  .bg-accent-gradient {
+    background-image: linear-gradient(135deg, #8f14b8 0%, #730a96 100%);
+  }
+
+  /* Lightweight CSS tooltip: <button data-tooltip="Label" data-tooltip-side="bottom"> */
+  [data-tooltip] {
+    position: relative;
+  }
+
+  [data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 8px);
+    transform: translate(-50%, 4px);
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: #2e2f2f;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #fafafa;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.3;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 150ms ease, transform 150ms ease;
+    transition-delay: 0ms;
+    z-index: 60;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  }
+
+  [data-tooltip][data-tooltip-side='bottom']::after {
+    bottom: auto;
+    top: calc(100% + 8px);
+    transform: translate(-50%, -4px);
+  }
+
+  [data-tooltip][data-tooltip-side='right']::after {
+    left: calc(100% + 8px);
+    bottom: auto;
+    top: 50%;
+    transform: translate(-4px, -50%);
+  }
+
+  [data-tooltip][data-tooltip-align='end']::after {
+    left: auto;
+    right: 0;
+    transform: translate(0, 4px);
+  }
+
+  [data-tooltip][data-tooltip-side='bottom'][data-tooltip-align='end']::after {
+    transform: translate(0, -4px);
+  }
+
+  @media (hover: hover) {
+    [data-tooltip]:hover::after {
+      opacity: 1;
+      transform: translate(-50%, 0);
+      transition-delay: 350ms;
+    }
+
+    [data-tooltip][data-tooltip-side='right']:hover::after {
+      transform: translate(0, -50%);
+    }
+
+    [data-tooltip][data-tooltip-align='end']:hover::after {
+      transform: translate(0, 0);
+    }
+  }
+
+  /* Highlighted search match inside a message */
+  mark.search-hit {
+    background: rgba(176, 79, 212, 0.4);
+    color: inherit;
+    border-radius: 3px;
+    padding: 0 1px;
+  }
+
+  /* On accent (outgoing) bubbles, highlight with a charcoal tint instead */
+  .on-accent-surface mark.search-hit {
+    background: rgba(255, 255, 255, 0.25);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
