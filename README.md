@@ -21,9 +21,10 @@ A full-stack, one-to-one messaging app built with **React (Vite)**, **Node.js/Ex
 - **Read receipts**: `sent` (receiver offline) → `delivered` (receiver online) → `seen` (receiver opened the chat)
 - Pending messages are marked delivered automatically when the receiver comes online
 - Unread counts per conversation and a "New messages" divider
-- Typing indicators
+- Typing indicators, both in the open chat and in the chat list
 - Edit your own text messages (shown as *edited*)
 - **Delete for me** (any message) and **Delete for everyone** (sender only; leaves a "This message was deleted" placeholder)
+- **Clear chat**: removes every message in a conversation for you only (the other person keeps theirs)
 
 ### Users & Presence
 - Online / offline status and "last seen" timestamps, broadcast in real time
@@ -95,7 +96,7 @@ Chat App/
 │   │   ├── authController.js         # register, login, me
 │   │   ├── userController.js         # list, search, get by id, update profile
 │   │   ├── conversationController.js # access/create, list, get by id
-│   │   └── messageController.js      # history, send, upload, seen, unread, edit, delete
+│   │   └── messageController.js      # history, send, upload, seen, unread, edit, delete, clear
 │   ├── middleware/
 │   │   ├── authMiddleware.js         # JWT "protect" guard
 │   │   ├── uploadMiddleware.js       # Multer: type filter + 50 MB limit
@@ -103,7 +104,7 @@ Chat App/
 │   ├── models/                       # User, Conversation, Message
 │   ├── routes/                       # authRoutes, userRoutes, conversationRoutes, messageRoutes
 │   ├── services/
-│   │   └── messageStatusService.js   # delivered/seen updates, unread counts
+│   │   └── messageStatusService.js   # delivered/seen updates, unread counts (ignores cleared messages)
 │   ├── socket/
 │   │   └── socketHandler.js          # socket auth, presence, events
 │   ├── utils/
@@ -279,6 +280,7 @@ All endpoints are prefixed with `/api`. Protected endpoints require `Authorizati
 | PATCH | `/messages/:conversationId/seen` | Protected | Mark incoming messages in a conversation as seen |
 | GET | `/messages/unread/counts` | Protected | Unread count per conversation |
 | PUT | `/messages/:id` | Protected | Edit your own message text |
+| DELETE | `/messages/:conversationId/clear` | Protected | Clear a conversation for the current user only (participants only) |
 | DELETE | `/messages/:id?scope=me\|everyone` | Protected | `me`: hide for yourself; `everyone`: sender-only, clears content for both users (default `everyone`) |
 
 ### Health
@@ -318,7 +320,8 @@ Uploaded files stored locally are served from `/uploads/<filename>`.
 | `messages:seen` | `{ conversationId, readerId, messageIds, seenAt }` | Seen receipts |
 | `message:update` | message | Edited message, or a message deleted for everyone |
 | `message:delete` | `{ messageId, conversationId }` | A "delete for me" sync, sent only to the deleting user's own sessions |
-| `typing:start` / `typing:stop` | `{ conversationId, senderId[, senderName] }` | Typing indicator |
+| `conversation:cleared` | `{ conversationId }` | A "clear chat" sync, sent only to the clearing user's own sessions |
+| `typing:start` / `typing:stop` | `{ conversationId, senderId[, senderName] }` | Typing indicator, sent to the conversation room and the receiver's user room so the chat list updates too |
 
 ### Message delivery flow
 
@@ -358,7 +361,7 @@ Message
  ├── text, messageType (text | image | video), mediaUrl
  ├── isEdited
  ├── status (sent | delivered | seen), deliveredAt, seenAt
- ├── deletedFor: [User]                  "delete for me"
+ ├── deletedFor: [User]                  "delete for me" / "clear chat"
  ├── isDeletedForEveryone                content cleared, placeholder shown
  └── createdAt / updatedAt
 ```

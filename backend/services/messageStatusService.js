@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Message = require('../models/Message');
 
 /**
@@ -101,11 +102,13 @@ const markMessagesSeen = async (conversationId, receiverId) => {
  */
 const getUnreadCounts = async (userId) => {
   try {
+    const receiverId = new mongoose.Types.ObjectId(userId.toString());
     const counts = await Message.aggregate([
       {
         $match: {
-          receiver: userId,
+          receiver: receiverId,
           status: { $ne: 'seen' },
+          deletedFor: { $ne: receiverId },
         },
       },
       {

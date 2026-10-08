@@ -41,6 +41,11 @@ export const messageService = {
     return response.data;
   },
 
+  async clearConversation(conversationId) {
+    const response = await api.delete(`/messages/${conversationId}/clear`);
+    return response.data;
+  },
+
   async updateMessage(messageId, text) {
     const response = await api.put(`/messages/${messageId}`, { text });
     return response.data;

@@ -239,6 +239,41 @@ const deleteMessage = async (req, res, next) => {
   }
 };
 
+// @desc    Clear a conversation for the current user (hides all its messages for them only)
+// @route   DELETE /api/messages/:conversationId/clear
+// @access  Private
+const clearConversation = async (req, res, next) => {
+  try {
+    const { conversationId } = req.params;
+    const userId = req.user._id;
+
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) {
+      return res.status(404).json({ message: 'Conversation not found' });
+    }
+
+    const isParticipant = conversation.participants.some((p) => p.toString() === userId.toString());
+    if (!isParticipant) {
+      return res.status(403).json({ message: 'Not authorized to clear this conversation' });
+    }
+
+    const result = await Message.updateMany(
+      { conversationId, deletedFor: { $ne: userId } },
+      { $addToSet: { deletedFor: userId } }
+    );
+
+    // Sync the user's other open sessions
+    const io = req.app.get('io');
+    if (io) {
+      io.to(userId.toString()).emit('conversation:cleared', { conversationId });
+    }
+
+    res.json({ conversationId, clearedCount: result.modifiedCount });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Edit/update a message text by ID
 // @route   PUT /api/messages/:id
 // @access  Private
@@ -293,5 +328,6 @@ module.exports = {
   getUserUnreadCounts,
   deleteMessage,
   updateMessage,
+  clearConversation,
 };
 

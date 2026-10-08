@@ -8,6 +8,7 @@ const {
   getUserUnreadCounts,
   deleteMessage,
   updateMessage,
+  clearConversation,
 } = require('../controllers/messageController');
 const { protect } = require('../middleware/authMiddleware');
 const upload = require('../middleware/uploadMiddleware');
@@ -18,6 +19,7 @@ router.post('/', protect, sendMessage);
 router.post('/upload', protect, upload.single('file'), uploadMediaMessage);
 router.patch('/:conversationId/seen', protect, markConversationSeen);
 router.put('/:id', protect, updateMessage);
+router.delete('/:conversationId/clear', protect, clearConversation);
 router.delete('/:id', protect, deleteMessage);
 
 module.exports = router;

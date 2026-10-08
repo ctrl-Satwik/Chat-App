@@ -23,6 +23,7 @@ export const ChatProvider = ({ children }) => {
   const [editingMessage, setEditingMessage] = useState(null);
 
   const processedUnreadMsgsRef = useRef(new Set());
+  const typingTimersRef = useRef({}); // `${conversationId}:${senderId}` -> timeout id
   const activeConvRef = useRef(activeConversation);
   useEffect(() => {
     activeConvRef.current = activeConversation;
@@ -212,6 +213,21 @@ export const ChatProvider = ({ children }) => {
       );
     });
 
+    const clearTyping = (conversationId, senderId) => {
+      const key = `${conversationId}:${senderId}`;
+      clearTimeout(typingTimersRef.current[key]);
+      delete typingTimersRef.current[key];
+      setTypingState((prev) => {
+        if (!prev[conversationId]?.[senderId]) return prev;
+        const convTyping = { ...prev[conversationId] };
+        delete convTyping[senderId];
+        return {
+          ...prev,
+          [conversationId]: convTyping,
+        };
+      });
+    };
+
     newSocket.on('typing:start', ({ conversationId, senderId, senderName }) => {
       setTypingState((prev) => ({
         ...prev,
@@ -220,17 +236,29 @@ export const ChatProvider = ({ children }) => {
           [senderId]: senderName || 'Someone',
         },
       }));
+
+      // Safety net: drop the indicator if no further typing events arrive (e.g. sender disconnected)
+      const key = `${conversationId}:${senderId}`;
+      clearTimeout(typingTimersRef.current[key]);
+      typingTimersRef.current[key] = setTimeout(() => clearTyping(conversationId, senderId), 5000);
     });
 
     newSocket.on('typing:stop', ({ conversationId, senderId }) => {
-      setTypingState((prev) => {
-        const convTyping = { ...(prev[conversationId] || {}) };
-        delete convTyping[senderId];
-        return {
-          ...prev,
-          [conversationId]: convTyping,
-        };
+      clearTyping(conversationId, senderId);
+    });
+
+    // Chat cleared from another of this user's sessions
+    newSocket.on('conversation:cleared', ({ conversationId }) => {
+      if (activeConvRef.current?._id === conversationId) {
+        setMessages([]);
+      }
+      setUnreadCounts((prev) => {
+        if (!prev[conversationId]) return prev;
+        const updated = { ...prev };
+        delete updated[conversationId];
+        return updated;
       });
+      fetchConversations();
     });
 
     newSocket.on('message:delete', ({ messageId, conversationId }) => {
@@ -264,6 +292,8 @@ export const ChatProvider = ({ children }) => {
     setSocket(newSocket);
 
     return () => {
+      Object.values(typingTimersRef.current).forEach(clearTimeout);
+      typingTimersRef.current = {};
       newSocket.disconnect();
     };
   }, [user, token]);
@@ -473,6 +503,22 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
+  // Clear chat — hides every message in the conversation for the current user only
+  const clearChat = async (conversationId) => {
+    await messageService.clearConversation(conversationId);
+    if (activeConvRef.current?._id === conversationId) {
+      setMessages([]);
+      setEditingMessage(null);
+    }
+    setUnreadCounts((prev) => {
+      if (!prev[conversationId]) return prev;
+      const updated = { ...prev };
+      delete updated[conversationId];
+      return updated;
+    });
+    fetchConversations();
+  };
+
   // Edit message
   const editMessage = async (messageId, text) => {
     try {
@@ -510,6 +556,7 @@ export const ChatProvider = ({ children }) => {
         sendMessageText,
         sendMediaMessage,
         deleteMessage,
+        clearChat,
         editMessage,
         emitTyping,
         fetchConversations,

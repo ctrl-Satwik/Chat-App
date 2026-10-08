@@ -3,11 +3,13 @@ import Avatar from '../common/Avatar';
 import IconButton from '../common/IconButton';
 import Dropdown from '../common/Dropdown';
 import Modal from '../common/Modal';
+import Button from '../common/Button';
 import TypingDots from './TypingDots';
 import { useAuth } from '../../hooks/useAuth';
 import { useChatContext } from '../../context/ChatContext';
+import { useToast } from '../../context/ToastContext';
 import { formatLastSeen } from '../../utils/formatDate';
-import { ArrowLeft, Search, MoreVertical, Info, X, Mail } from 'lucide-react';
+import { ArrowLeft, Search, MoreVertical, Info, X, Mail, Eraser } from 'lucide-react';
 
 const ChatHeader = ({
   conversation,
@@ -19,8 +21,11 @@ const ChatHeader = ({
   matchCount,
 }) => {
   const { user } = useAuth();
-  const { onlineUserIds, typingState, selectConversation } = useChatContext();
+  const { onlineUserIds, typingState, selectConversation, clearChat } = useChatContext();
+  const toast = useToast();
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+  const [isClearOpen, setIsClearOpen] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
   const searchInputRef = useRef(null);
 
   useEffect(() => {
@@ -31,6 +36,20 @@ const ChatHeader = ({
 
   const recipient = conversation.participants.find((p) => p._id !== user?._id) || {};
   const isOnline = onlineUserIds.includes(recipient._id);
+
+  const handleClearChat = async () => {
+    setIsClearing(true);
+    try {
+      await clearChat(conversation._id);
+      setIsClearOpen(false);
+      toast.success('Chat cleared');
+    } catch (err) {
+      console.error('Failed to clear chat:', err);
+      toast.error('Could not clear the chat. Please try again.');
+    } finally {
+      setIsClearing(false);
+    }
+  };
 
   const convTyping = typingState[conversation._id] || {};
   const isTyping = Object.keys(convTyping).length > 0;
@@ -106,6 +125,7 @@ const ChatHeader = ({
               { label: 'Contact info', icon: Info, onClick: () => setIsInfoModalOpen(true) },
               { label: 'Search messages', icon: Search, onClick: () => !isSearchOpen && onToggleSearch() },
               { divider: true },
+              { label: 'Clear chat', icon: Eraser, onClick: () => setIsClearOpen(true), danger: true },
               { label: 'Close chat', icon: X, onClick: () => selectConversation(null) },
             ]}
           />
@@ -138,6 +158,24 @@ const ChatHeader = ({
           </div>
         )}
       </header>
+
+      {/* Clear chat confirmation */}
+      <Modal
+        isOpen={isClearOpen}
+        onClose={() => !isClearing && setIsClearOpen(false)}
+        title="Clear this chat?"
+        description={`All messages will be removed for you only. ${recipient.fullName || 'The other person'} will still see them.`}
+        maxWidth="max-w-sm"
+      >
+        <div className="flex flex-col gap-2">
+          <Button type="button" variant="danger" isLoading={isClearing} onClick={handleClearChat} className="w-full">
+            Clear chat
+          </Button>
+          <Button type="button" variant="ghost" disabled={isClearing} onClick={() => setIsClearOpen(false)} className="w-full">
+            Cancel
+          </Button>
+        </div>
+      </Modal>
 
       {/* Contact info */}
       <Modal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} title="Contact info" maxWidth="max-w-sm">

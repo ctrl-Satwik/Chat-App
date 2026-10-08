@@ -117,35 +117,21 @@ const initializeSocket = (io) => {
     });
 
     // Handle typing start
-    socket.on('typing:start', ({ conversationId, receiverId }) => {
-      if (conversationId) {
-        socket.to(conversationId).emit('typing:start', {
-          conversationId,
-          senderId: userId,
-          senderName: socket.user.fullName,
-        });
-      } else if (receiverId) {
-        io.to(receiverId).emit('typing:start', {
-          conversationId,
-          senderId: userId,
-          senderName: socket.user.fullName,
-        });
-      }
+    // Typing events go to the conversation room (open chat) and the receiver's personal room,
+    // so the receiver's chat list can show "typing…" even when that chat isn't open.
+    // socket.to() excludes the sender and de-duplicates sockets that are in both rooms.
+    const emitTyping = (event, { conversationId, receiverId }, extra = {}) => {
+      const rooms = [conversationId, receiverId].filter(Boolean).map(String);
+      if (!rooms.length) return;
+      socket.to(rooms).emit(event, { conversationId, senderId: userId, ...extra });
+    };
+
+    socket.on('typing:start', (data = {}) => {
+      emitTyping('typing:start', data, { senderName: socket.user.fullName });
     });
 
-    // Handle typing stop
-    socket.on('typing:stop', ({ conversationId, receiverId }) => {
-      if (conversationId) {
-        socket.to(conversationId).emit('typing:stop', {
-          conversationId,
-          senderId: userId,
-        });
-      } else if (receiverId) {
-        io.to(receiverId).emit('typing:stop', {
-          conversationId,
-          senderId: userId,
-        });
-      }
+    socket.on('typing:stop', (data = {}) => {
+      emitTyping('typing:stop', data);
     });
 
     // Handle real-time sending of messages
